@@ -964,6 +964,8 @@ public static class GameSettingMenuPatch
     public static FreeChatInputField InputField;
     private static System.Collections.Generic.List<OptionItem> HiddenBySearch = [];
     public static Action SearchForOptionsAction;
+    private static bool HideDisabledRoles = false;
+    private static System.Collections.Generic.List<OptionItem> HiddenByDisabled = [];
 
     private static int NumImpsOnOpen = 1;
     private static int MinImpsOnOpen = 1;
@@ -1060,6 +1062,8 @@ public static class GameSettingMenuPatch
 
         HiddenBySearch.Do(x => x.SetHidden(false));
         HiddenBySearch.Clear();
+        ClearHideDisabledFilter();
+        HideDisabledRoles = false;
 
         SetupExtendedUI(__instance);
     }
@@ -1265,6 +1269,39 @@ public static class GameSettingMenuPatch
             if (field.textArea.text != string.Empty) SearchForOptions(field);
         };
 
+        // "Hide Disabled Roles" toggle button - hides all roles set to 0% spawn chance
+        var hideDisabledFab = Object.Instantiate(__instance.GamePresetsButton.gameObject, parentLeftPanel.parent);
+        hideDisabledFab.gameObject.SetActive(true);
+        hideDisabledFab.transform.localScale = new(0.55f, 0.3f, 1f);
+        hideDisabledFab.transform.localPosition = new(-0.7f, -3.1f, -5f);
+        var hideDisabledLabel = hideDisabledFab.transform.Find("FontPlacer/Text_TMP").GetComponent<TextMeshPro>();
+        hideDisabledLabel.alignment = TextAlignmentOptions.Center;
+        hideDisabledLabel.DestroyTranslator();
+        hideDisabledLabel.text = Translator.GetString("HideDisabledRoles");
+        hideDisabledLabel.color = Color.white;
+        hideDisabledLabel.transform.localScale = new(2f, 3.5f, 1f);
+
+        var hideDisabledPassive = hideDisabledFab.GetComponent<PassiveButton>();
+        hideDisabledPassive.OnClick.RemoveAllListeners();
+        hideDisabledPassive.OnClick.AddListener((Action)(() =>
+        {
+            HideDisabledRoles = !HideDisabledRoles;
+            hideDisabledLabel.text = HideDisabledRoles
+                ? Translator.GetString("ShowAllRoles")
+                : Translator.GetString("HideDisabledRoles");
+            Color btnColor = HideDisabledRoles ? new Color(0.2f, 0.9f, 0.4f) : Color.white;
+            hideDisabledPassive.activeTextColor = hideDisabledPassive.inactiveTextColor =
+                hideDisabledPassive.disabledTextColor = hideDisabledPassive.selectedTextColor = btnColor;
+
+            ClearHideDisabledFilter();
+            if (HideDisabledRoles) ApplyHideDisabledFilter();
+
+            if (ModGameOptionsMenu.TabIndex >= 3 && ModSettingsTabs.TryGetValue((TabGroup)(ModGameOptionsMenu.TabIndex - 3), out GameOptionsMenu curMenu) && curMenu)
+                GameOptionsMenuPatch.ReCreateSettings(curMenu);
+        }));
+        hideDisabledPassive.activeTextColor = hideDisabledPassive.inactiveTextColor =
+            hideDisabledPassive.disabledTextColor = hideDisabledPassive.selectedTextColor = Color.white;
+
         return;
 
         static void SearchForOptions(FreeChatInputField textField)
@@ -1272,24 +1309,47 @@ public static class GameSettingMenuPatch
             if (ModGameOptionsMenu.TabIndex < 3) return;
 
             HiddenBySearch.Do(x => x.SetHidden(false));
-            string text = textField.textArea.text.Trim().ToLower();
-            var modTab = (TabGroup)(ModGameOptionsMenu.TabIndex - 3);
-            OptionItem[] optionItems = Options.GroupedOptions[modTab];
-            System.Collections.Generic.List<OptionItem> result = optionItems.Where(x => x.Parent == null && !x.IsCurrentlyHidden() && !Translator.GetString($"{x.Name}").Contains(text, StringComparison.OrdinalIgnoreCase)).ToList();
-            HiddenBySearch = result;
-            System.Collections.Generic.List<OptionItem> searchWinners = optionItems.Where(x => x.Parent == null && !x.IsCurrentlyHidden() && !result.Contains(x)).ToList();
+            HiddenBySearch.Clear();
 
-            if (searchWinners.Count == 0 || !ModSettingsTabs.TryGetValue(modTab, out GameOptionsMenu gameSettings) || !gameSettings)
+            string text = textField.textArea.text.Trim();
+            if (string.IsNullOrEmpty(text)) return;
+
+            var startTab = (TabGroup)(ModGameOptionsMenu.TabIndex - 3);
+
+            // Search the current tab first, then all other tabs
+            IEnumerable<TabGroup> tabsToSearch = new[] { startTab }
+                .Concat(Enum.GetValues<TabGroup>().Where(t => t != startTab));
+
+            foreach (TabGroup tab in tabsToSearch)
             {
-                HiddenBySearch.Clear();
-                Logger.SendInGame(Translator.GetString("SearchNoResult"), Palette.Orange);
-                return;
+                if (!Options.GroupedOptions.TryGetValue(tab, out OptionItem[] tabItems)) continue;
+
+                System.Collections.Generic.List<OptionItem> nonMatching = tabItems
+                    .Where(x => x.Parent == null && !x.IsCurrentlyHidden() &&
+                                !Translator.GetString($"{x.Name}").Contains(text, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                System.Collections.Generic.List<OptionItem> matching = tabItems
+                    .Where(x => x.Parent == null && !x.IsCurrentlyHidden() &&
+                                Translator.GetString($"{x.Name}").Contains(text, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (matching.Count == 0) continue;
+
+                // Switch to the matched tab if it's not the current one
+                if (tab != startTab)
+                    GameSettingMenu.Instance.ChangeTab((int)tab + 3, false);
+
+                HiddenBySearch = nonMatching;
+                nonMatching.ForEach(x => x.SetHidden(true));
+
+                if (ModSettingsTabs.TryGetValue(tab, out GameOptionsMenu gameSettings) && gameSettings)
+                    GameOptionsMenuPatch.ReCreateSettings(gameSettings);
+
+                return; // Keep text visible — no textField.Clear()
             }
 
-            result.ForEach(x => x.SetHidden(true));
-
-            GameOptionsMenuPatch.ReCreateSettings(gameSettings);
-            textField.Clear();
+            Logger.SendInGame(Translator.GetString("SearchNoResult"), Palette.Orange);
         }
     }
 
@@ -1390,6 +1450,14 @@ public static class GameSettingMenuPatch
 
         if (ModSettingsButtons.TryGetValue(tabGroup, out button) && button) button.SelectButton(true);
 
+        if (HideDisabledRoles)
+        {
+            ClearHideDisabledFilter();
+            ApplyHideDisabledFilter();
+            if (ModSettingsTabs.TryGetValue(tabGroup, out settingsTab) && settingsTab)
+                GameOptionsMenuPatch.ReCreateSettings(settingsTab);
+        }
+
         return false;
     }
 
@@ -1461,6 +1529,9 @@ public static class GameSettingMenuPatch
         
         Options.AutoSetFactionMinMaxSettings();
 
+        HideDisabledRoles = false;
+        ClearHideDisabledFilter();
+
         foreach (PassiveButton button in ModSettingsButtons.Values) Object.Destroy(button);
         foreach (GameOptionsMenu tab in ModSettingsTabs.Values) Object.Destroy(tab);
         foreach (GameObject button in GMButtons) Object.Destroy(button);
@@ -1470,6 +1541,27 @@ public static class GameSettingMenuPatch
         GMButtons = [];
 
         Main.Instance.StartCoroutine(OptionShower.GetText());
+    }
+
+    private static void ApplyHideDisabledFilter()
+    {
+        if (ModGameOptionsMenu.TabIndex < 3) return;
+        var modTab = (TabGroup)(ModGameOptionsMenu.TabIndex - 3);
+        if (modTab < TabGroup.ImpostorRoles) return; // Only apply on role tabs
+        if (!Options.GroupedOptions.TryGetValue(modTab, out OptionItem[] tabItems)) return;
+
+        foreach (OptionItem item in tabItems)
+        {
+            if (item.Parent != null || item.IsCurrentlyHidden() || item.GetInt() != 0) continue;
+            item.SetHidden(true);
+            HiddenByDisabled.Add(item);
+        }
+    }
+
+    private static void ClearHideDisabledFilter()
+    {
+        HiddenByDisabled.Do(x => x.SetHidden(false));
+        HiddenByDisabled.Clear();
     }
 }
 

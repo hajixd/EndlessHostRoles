@@ -11238,6 +11238,8 @@
   "RevivedByTimeMaster": "<size=150%><#ffff00>You were revived during the rewind!</color></size>",
   "SKPromotesToJackal": "<color=#00b4eb>Sidekick</color> gets promoted to <color=#00b4eb>Jackal</color> on <color=#00b4eb>Jackal</color> death",
   "Scientist": "Scientist",
+  "HideDisabledRoles": "Hide Disabled",
+  "ShowAllRoles": "Show All",
   "SearchNoResult": "No results found",
   "SeeMedic": "<color=#00ff97>Medic</color>",
   "SeeMedicAndTarget": "<color=#00ff97>Medic</color>+<color=#8cffff>Shielded</color>",
