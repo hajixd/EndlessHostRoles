@@ -125,14 +125,16 @@ public static class GameOptionsMenuPatch
                     {
                         CategoryHeaderMasked categoryHeaderMasked = Object.Instantiate(__instance.categoryHeaderOrigin, Vector3.zero, Quaternion.identity, __instance.settingsContainer);
                         categoryHeaderMasked.SetHeader(StringNames.RolesCategory, 20);
-                        categoryHeaderMasked.Title.text = option.GetName(disableColor: true).Trim('★', ' ');
-                        categoryHeaderMasked.Background.color = categoryHeaderMasked.Divider.color = option.NameColor;
+                        categoryHeaderMasked.Title.text = GetCategoryHeaderTitle(toi);
+                        categoryHeaderMasked.Background.color = new Color32(45, 53, 61, byte.MaxValue);
+                        categoryHeaderMasked.Divider.color = GetModTabAccentColor(modTab);
                         categoryHeaderMasked.transform.localScale = Vector3.one * 0.63f;
                         categoryHeaderMasked.transform.localPosition = new(-0.903f, num, posZ);
                         var chmText = categoryHeaderMasked.transform.FindChild("HeaderText").GetComponent<TextMeshPro>();
-                        chmText.fontStyle = FontStyles.Bold | FontStyles.SmallCaps;
-                        chmText.fontWeight = FontWeight.Black;
-                        chmText.outlineWidth = 0.17f;
+                        chmText.fontStyle = FontStyles.Bold;
+                        chmText.fontWeight = FontWeight.Bold;
+                        chmText.color = Color.white;
+                        chmText.outlineWidth = 0.08f;
                         var chmCollider = categoryHeaderMasked.gameObject.AddComponent<BoxCollider2D>();
                         chmCollider.size = new Vector2(7, 0.7f);
                         chmCollider.offset = new Vector2(1.5f, -0.3f);
@@ -241,32 +243,52 @@ public static class GameOptionsMenuPatch
         }
     }
 
+    internal static Color GetModTabAccentColor(TabGroup tab)
+    {
+        return tab switch
+        {
+            TabGroup.ImpostorRoles => new Color32(201, 70, 70, byte.MaxValue),
+            TabGroup.CrewmateRoles => new Color32(95, 182, 213, byte.MaxValue),
+            TabGroup.NeutralRoles => new Color32(221, 163, 80, byte.MaxValue),
+            TabGroup.CovenRoles => new Color32(133, 104, 179, byte.MaxValue),
+            TabGroup.Addons => new Color32(136, 167, 95, byte.MaxValue),
+            TabGroup.OtherRoles => new Color32(164, 164, 164, byte.MaxValue),
+            _ => new Color32(88, 167, 207, byte.MaxValue)
+        };
+    }
+
+    private static string GetCategoryHeaderTitle(TextOptionItem headerOption)
+    {
+        string indicator = headerOption.CollapsesSection ? ">" : "v";
+        return $"{indicator} {headerOption.GetName(disableColor: true).Trim('★', ' ')}";
+    }
+
     private static void OptionBehaviourSetSizeAndPosition(OptionBehaviour optionBehaviour, OptionItem option, OptionTypes type)
     {
         Vector3 positionOffset = new(0f, 0f, 0f);
         Vector3 scaleOffset = new(0f, 0f, 0f);
-        Color color = new(0.35f, 0.35f, 0.35f);
+        Color color = new Color32(49, 57, 66, byte.MaxValue);
         var sizeDeltaX = 5.7f;
 
         if (option.Parent?.Parent?.Parent != null)
         {
             scaleOffset = new(-0.18f, 0, 0);
             positionOffset = new(0.3f, 0f, 0f);
-            color = new(0.35f, 0f, 0f);
+            color = new Color32(35, 43, 52, byte.MaxValue);
             sizeDeltaX = 5.1f;
         }
         else if (option.Parent?.Parent != null)
         {
             scaleOffset = new(-0.12f, 0, 0);
             positionOffset = new(0.2f, 0f, 0f);
-            color = new(0.35f, 0.35f, 0f);
+            color = new Color32(40, 48, 57, byte.MaxValue);
             sizeDeltaX = 5.3f;
         }
         else if (option.Parent != null)
         {
             scaleOffset = new(-0.05f, 0, 0);
             positionOffset = new(0.1f, 0f, 0f);
-            color = new(0f, 0f, 0.35f);
+            color = new Color32(44, 52, 61, byte.MaxValue);
             sizeDeltaX = 5.5f;
         }
 
@@ -281,7 +303,7 @@ public static class GameOptionsMenuPatch
         var textMeshPro = titleText.GetComponent<TextMeshPro>();
         textMeshPro.alignment = TextAlignmentOptions.MidlineLeft;
         textMeshPro.fontStyle = FontStyles.Bold;
-        textMeshPro.outlineWidth = 0.17f;
+        textMeshPro.outlineWidth = 0.08f;
 
         switch (type)
         {
@@ -314,6 +336,8 @@ public static class GameOptionsMenuPatch
                 Transform valueBox = optionBehaviour.transform.FindChild("ValueBox");
                 valueBox.localScale += new Vector3(0.2f, 0f, 0f);
                 valueBox.localPosition += new Vector3(1.3f, 0f, 0f);
+                var valueRenderer = valueBox.GetComponent<SpriteRenderer>();
+                if (valueRenderer) valueRenderer.color = new Color32(66, 74, 84, byte.MaxValue);
                 break;
             }
         }
@@ -351,6 +375,9 @@ public static class GameOptionsMenuPatch
 
             if (ModGameOptionsMenu.CategoryHeaderList.TryGetValue(index, out CategoryHeaderMasked categoryHeaderMasked))
             {
+                if (option is TextOptionItem header)
+                    categoryHeaderMasked.Title.text = GetCategoryHeaderTitle(header);
+
                 categoryHeaderMasked.transform.localPosition = new(-0.903f, num, -2f);
                 categoryHeaderMasked.gameObject.SetActive(enabled);
                 if (enabled) num -= 0.63f;
@@ -1013,23 +1040,14 @@ public static class GameSettingMenuPatch
             button.activeTextColor = button.inactiveTextColor = Color.white;
             button.selectedTextColor = new(0.7f, 0.7f, 0.7f);
 
-            Color color = tab switch
-            {
-                TabGroup.SystemSettings => new(0.2f, 0.2f, 0.2f),
-                TabGroup.GameSettings => new(0.2f, 0.4f, 0.3f),
-                TabGroup.TaskSettings => new(0.4f, 0.2f, 0.5f),
-                TabGroup.ImpostorRoles => new(0.5f, 0.2f, 0.2f),
-                TabGroup.CrewmateRoles => new(0.2f, 0.4f, 0.5f),
-                TabGroup.NeutralRoles => new(0.5f, 0.4f, 0.2f),
-                TabGroup.CovenRoles => new(0.5f, 0.2f, 0.4f),
-                TabGroup.Addons => new(0.4f, 0.2f, 0.3f),
-                TabGroup.OtherRoles => new(0.4f, 0.4f, 0.4f),
-                _ => new(0.3f, 0.3f, 0.3f)
-            };
+            Color labelColor = tab >= TabGroup.ImpostorRoles ? GameOptionsMenuPatch.GetModTabAccentColor(tab) : Color.white;
+            label.color = labelColor;
+            button.activeTextColor = button.inactiveTextColor = button.disabledTextColor = labelColor;
+            button.selectedTextColor = Color.white;
 
-            button.inactiveSprites.GetComponent<SpriteRenderer>().color = color;
-            button.activeSprites.GetComponent<SpriteRenderer>().color = color;
-            button.selectedSprites.GetComponent<SpriteRenderer>().color = color;
+            button.inactiveSprites.GetComponent<SpriteRenderer>().color = new Color32(55, 59, 60, byte.MaxValue);
+            button.activeSprites.GetComponent<SpriteRenderer>().color = new Color32(70, 78, 84, byte.MaxValue);
+            button.selectedSprites.GetComponent<SpriteRenderer>().color = new Color32(0, 133, 196, byte.MaxValue);
 
             // ReSharper disable once PossibleLossOfFraction
             Vector3 offset = new(0f, (0.3f * (((int)tab + 1) / 2)), 0f);
@@ -1127,8 +1145,8 @@ public static class GameSettingMenuPatch
         selectedSprites.sprite = tempMinus.GetComponentInChildren<SpriteRenderer>().sprite;
 
         inactiveSprites.color = new Color32(55, 59, 60, 255);
-        activeSprites.color = new Color32(0, 255, 165, 255);
-        selectedSprites.color = new Color32(0, 165, 255, 255);
+        activeSprites.color = new Color32(70, 78, 84, 255);
+        selectedSprites.color = new Color32(0, 133, 196, 255);
 
 
         GameObject plusFab = Object.Instantiate(gMinus, preset.transform);
@@ -1228,6 +1246,9 @@ public static class GameSettingMenuPatch
         field.transform.localPosition = new(-0.7f, -2.5f, -5f);
         field.textArea.outputText.transform.localScale = new(3.5f, 2f, 1f);
         field.textArea.outputText.font = plusLabel.font;
+        field.textArea.outputText.enableWordWrapping = false;
+        field.textArea.characterLimit = 60;
+        if (field.charCountText) field.charCountText.gameObject.SetActive(false);
 
         InputField = field;
 
@@ -1262,12 +1283,9 @@ public static class GameSettingMenuPatch
         var passiveButton = button.GetComponent<PassiveButton>();
 
         passiveButton.OnClick = new();
-        passiveButton.OnClick.AddListener((Action)(() => SearchForOptions(field)));
+        passiveButton.OnClick.AddListener((Action)(() => ApplySearchFilter(field, true)));
 
-        SearchForOptionsAction = () =>
-        {
-            if (field.textArea.text != string.Empty) SearchForOptions(field);
-        };
+        SearchForOptionsAction = () => ApplySearchFilter(field, true);
 
         // "Hide Disabled Roles" toggle button - hides all roles set to 0% spawn chance
         var hideDisabledFab = Object.Instantiate(__instance.GamePresetsButton.gameObject, parentLeftPanel.parent);
@@ -1296,61 +1314,168 @@ public static class GameSettingMenuPatch
             ClearHideDisabledFilter();
             if (HideDisabledRoles) ApplyHideDisabledFilter();
 
-            if (ModGameOptionsMenu.TabIndex >= 3 && ModSettingsTabs.TryGetValue((TabGroup)(ModGameOptionsMenu.TabIndex - 3), out GameOptionsMenu curMenu) && curMenu)
+            if (InputField && !string.IsNullOrWhiteSpace(InputField.textArea.text))
+                ApplySearchFilter(InputField, false, false);
+            else if (ModGameOptionsMenu.TabIndex >= 3 && ModSettingsTabs.TryGetValue((TabGroup)(ModGameOptionsMenu.TabIndex - 3), out GameOptionsMenu curMenu) && curMenu)
                 GameOptionsMenuPatch.ReCreateSettings(curMenu);
         }));
         hideDisabledPassive.activeTextColor = hideDisabledPassive.inactiveTextColor =
             hideDisabledPassive.disabledTextColor = hideDisabledPassive.selectedTextColor = Color.white;
 
         return;
+    }
 
-        static void SearchForOptions(FreeChatInputField textField)
+    private static void ApplySearchFilter(FreeChatInputField textField, bool searchAcrossTabs, bool notifyIfMissing = true)
+    {
+        if (!textField || ModGameOptionsMenu.TabIndex < 3) return;
+
+        ClearSearchFilter();
+
+        string text = textField.textArea.text.Trim();
+        if (string.IsNullOrEmpty(text))
         {
-            if (ModGameOptionsMenu.TabIndex < 3) return;
+            if (!HideDisabledRoles) return;
 
-            HiddenBySearch.Do(x => x.SetHidden(false));
-            HiddenBySearch.Clear();
+            ClearHideDisabledFilter();
+            ApplyHideDisabledFilter();
 
-            string text = textField.textArea.text.Trim();
-            if (string.IsNullOrEmpty(text)) return;
+            if (ModSettingsTabs.TryGetValue((TabGroup)(ModGameOptionsMenu.TabIndex - 3), out GameOptionsMenu currentMenu) && currentMenu)
+                GameOptionsMenuPatch.ReCreateSettings(currentMenu);
 
-            var startTab = (TabGroup)(ModGameOptionsMenu.TabIndex - 3);
+            return;
+        }
 
-            // Search the current tab first, then all other tabs
-            IEnumerable<TabGroup> tabsToSearch = new[] { startTab }
-                .Concat(Enum.GetValues<TabGroup>().Where(t => t != startTab));
+        var startTab = (TabGroup)(ModGameOptionsMenu.TabIndex - 3);
 
-            foreach (TabGroup tab in tabsToSearch)
+        IEnumerable<TabGroup> tabsToSearch = searchAcrossTabs
+            ? new[] { startTab }.Concat(Enum.GetValues<TabGroup>().Where(tab => tab != startTab && ModSettingsTabs.ContainsKey(tab)))
+            : new[] { startTab };
+
+        foreach (TabGroup tab in tabsToSearch)
+        {
+            if (!Options.GroupedOptions.TryGetValue(tab, out OptionItem[] tabItems)) continue;
+
+            System.Collections.Generic.List<OptionItem> visibleItems = tabItems.Where(item => !item.IsCurrentlyHidden()).ToList();
+            if (visibleItems.Count == 0) continue;
+
+            System.Collections.Generic.HashSet<OptionItem> matchedItems = CollectSearchMatches(visibleItems, text);
+            if (matchedItems.Count == 0) continue;
+
+            if (tab != startTab && searchAcrossTabs)
+                GameSettingMenu.Instance.ChangeTab((int)tab + 3, false);
+
+            HiddenBySearch = visibleItems.Where(item => !matchedItems.Contains(item)).ToList();
+            HiddenBySearch.Do(item => item.SetHidden(true));
+
+            if (ModSettingsTabs.TryGetValue(tab, out GameOptionsMenu gameSettings) && gameSettings)
+                GameOptionsMenuPatch.ReCreateSettings(gameSettings);
+
+            return;
+        }
+
+        if (notifyIfMissing)
+            Logger.SendInGame(Translator.GetString("SearchNoResult"), Palette.Orange);
+    }
+
+    private static System.Collections.Generic.HashSet<OptionItem> CollectSearchMatches(System.Collections.Generic.List<OptionItem> visibleItems, string searchText)
+    {
+        var matchedItems = new System.Collections.Generic.HashSet<OptionItem>();
+        var sectionItems = new System.Collections.Generic.Dictionary<TextOptionItem, System.Collections.Generic.List<OptionItem>>();
+        TextOptionItem currentHeader = null;
+
+        foreach (OptionItem item in visibleItems)
+        {
+            if (item is TextOptionItem header)
             {
-                if (!Options.GroupedOptions.TryGetValue(tab, out OptionItem[] tabItems)) continue;
+                currentHeader = header;
+                if (!sectionItems.TryGetValue(header, out System.Collections.Generic.List<OptionItem> section))
+                {
+                    section = [];
+                    sectionItems[header] = section;
+                }
 
-                System.Collections.Generic.List<OptionItem> nonMatching = tabItems
-                    .Where(x => x.Parent == null && !x.IsCurrentlyHidden() &&
-                                !Translator.GetString($"{x.Name}").Contains(text, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                System.Collections.Generic.List<OptionItem> matching = tabItems
-                    .Where(x => x.Parent == null && !x.IsCurrentlyHidden() &&
-                                Translator.GetString($"{x.Name}").Contains(text, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                if (matching.Count == 0) continue;
-
-                // Switch to the matched tab if it's not the current one
-                if (tab != startTab)
-                    GameSettingMenu.Instance.ChangeTab((int)tab + 3, false);
-
-                HiddenBySearch = nonMatching;
-                nonMatching.ForEach(x => x.SetHidden(true));
-
-                if (ModSettingsTabs.TryGetValue(tab, out GameOptionsMenu gameSettings) && gameSettings)
-                    GameOptionsMenuPatch.ReCreateSettings(gameSettings);
-
-                return; // Keep text visible — no textField.Clear()
+                section.Add(header);
+                continue;
             }
 
-            Logger.SendInGame(Translator.GetString("SearchNoResult"), Palette.Orange);
+            if (currentHeader != null && sectionItems.TryGetValue(currentHeader, out System.Collections.Generic.List<OptionItem> currentSection))
+                currentSection.Add(item);
         }
+
+        foreach (OptionItem item in visibleItems)
+        {
+            if (!OptionMatchesSearch(item, searchText)) continue;
+
+            matchedItems.Add(item);
+            if (item.Header != null) matchedItems.Add(item.Header);
+
+            for (OptionItem parent = item.Parent; parent != null; parent = parent.Parent)
+                matchedItems.Add(parent);
+
+            IncludeChildren(item, matchedItems);
+
+            if (item is TextOptionItem textHeader && sectionItems.TryGetValue(textHeader, out System.Collections.Generic.List<OptionItem> section))
+                section.ForEach(x => matchedItems.Add(x));
+        }
+
+        return matchedItems;
+    }
+
+    private static void IncludeChildren(OptionItem option, System.Collections.Generic.HashSet<OptionItem> matchedItems)
+    {
+        foreach (OptionItem child in option.Children)
+        {
+            if (child.IsCurrentlyHidden()) continue;
+            matchedItems.Add(child);
+            IncludeChildren(child, matchedItems);
+        }
+    }
+
+    private static bool OptionMatchesSearch(OptionItem option, string searchText)
+    {
+        if (string.IsNullOrEmpty(searchText)) return true;
+
+        string[] candidates =
+        [
+            option.Name,
+            option.GetName(disableColor: true).RemoveHtmlTags().Trim('★', ' ')
+        ];
+
+        if (candidates.Any(value => !string.IsNullOrWhiteSpace(value) && value.Contains(searchText, StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        if (option.Header != null)
+        {
+            string headerName = option.Header.GetName(disableColor: true).RemoveHtmlTags().Trim('★', ' ');
+            if (!string.IsNullOrWhiteSpace(headerName) && headerName.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        if (option is StringOptionItem stringOption)
+        {
+            foreach (string selection in stringOption.Selections)
+            {
+                string selectionText = stringOption.noTranslation ? selection : Translator.GetString(selection);
+                if (!string.IsNullOrWhiteSpace(selectionText) && selectionText.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ClearSearchFilter(TabGroup? refreshTab = null)
+    {
+        if (HiddenBySearch.Count == 0) return;
+
+        HiddenBySearch.Do(item => item.SetHidden(false));
+        HiddenBySearch.Clear();
+
+        if (!refreshTab.HasValue && ModGameOptionsMenu.TabIndex >= 3)
+            refreshTab = (TabGroup)(ModGameOptionsMenu.TabIndex - 3);
+
+        if (refreshTab.HasValue && ModSettingsTabs.TryGetValue(refreshTab.Value, out GameOptionsMenu gameSettings) && gameSettings)
+            GameOptionsMenuPatch.ReCreateSettings(gameSettings);
     }
 
     private static void SetDefaultButton(GameSettingMenu __instance)
@@ -1386,14 +1511,7 @@ public static class GameSettingMenuPatch
     public static bool ChangeTabPrefix(GameSettingMenu __instance, ref int tabNum, [HarmonyArgument(1)] bool previewOnly)
     {
         if (HiddenBySearch.Count > 0)
-        {
-            HiddenBySearch.Do(x => x.SetHidden(false));
-
-            if (ModSettingsTabs.TryGetValue((TabGroup)(ModGameOptionsMenu.TabIndex - 3), out GameOptionsMenu gameSettings) && gameSettings)
-                GameOptionsMenuPatch.ReCreateSettings(gameSettings);
-
-            HiddenBySearch.Clear();
-        }
+            ClearSearchFilter(ModGameOptionsMenu.TabIndex >= 3 ? (TabGroup)(ModGameOptionsMenu.TabIndex - 3) : null);
 
         if (!previewOnly || tabNum != 1) ModGameOptionsMenu.TabIndex = tabNum;
 
@@ -1457,6 +1575,9 @@ public static class GameSettingMenuPatch
             if (ModSettingsTabs.TryGetValue(tabGroup, out settingsTab) && settingsTab)
                 GameOptionsMenuPatch.ReCreateSettings(settingsTab);
         }
+
+        if (InputField && !string.IsNullOrWhiteSpace(InputField.textArea.text))
+            LateTask.New(() => ApplySearchFilter(InputField, false, false), 0.01f, log: false);
 
         return false;
     }
@@ -1593,7 +1714,9 @@ public static class FixDarkThemeForSearchBar
 
         if (field)
         {
-            field.background.color = new Color32(40, 40, 40, byte.MaxValue);
+            field.background.color = Main.DarkTheme.Value
+                ? new Color32(40, 40, 40, byte.MaxValue)
+                : new Color32(62, 71, 82, byte.MaxValue);
             field.textArea.compoText.Color(Color.white);
             field.textArea.outputText.color = Color.white;
         }
